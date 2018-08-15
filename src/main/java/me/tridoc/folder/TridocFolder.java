@@ -1,9 +1,12 @@
 package me.tridoc.folder;
 
+import java.io.File;
+import java.io.FileWriter;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
@@ -14,7 +17,11 @@ import java.nio.file.Paths;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Iterator;
+import java.util.TimeZone;
 
 import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
@@ -47,6 +54,7 @@ public class TridocFolder {
 
     private TridocFolder(TridocFolderArgs tridocFolderArgs) throws IOException {
         dir = Paths.get(tridocFolderArgs.getFolder());
+        logFile = dir.resolve("tridoc-folder-log.txt");
         processedFilesDir = dir.resolve("uploaded");
         Files.createDirectories(processedFilesDir);
         arguments = tridocFolderArgs;
@@ -56,6 +64,7 @@ public class TridocFolder {
      * Monitor the directory for new files
      */
     void monitor() throws IOException {
+        log("Started monitoring directory", null);
         WatchService watcher = FileSystems.getDefault().newWatchService();
         WatchKey watchKey = dir.register(watcher, ENTRY_CREATE);
         for (;;) {
@@ -103,10 +112,11 @@ public class TridocFolder {
     }
 
     private void processFiles() throws IOException {
+        log("Procedding files currently in folder", null);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (final Iterator<Path> file = stream.iterator(); file.hasNext();) {
                 Path child = dir.resolve(file.next());
-                if (child.equals(processedFilesDir)) {
+                if (child.equals(processedFilesDir) || child.equals(logFile)) {
                     continue;
                 }
                 processFile(child);
@@ -115,12 +125,17 @@ public class TridocFolder {
     }
 
     private void processFile(Path file) throws IOException {
+        if(!file.toString().endsWith(".pdf")) {
+            log(file+" doesn't end with \".pdf\", ignoring.", null);
+            return;
+        }
         System.out.format("Processing %s", file);
         System.out.println();
-        uploadFile(file);
-        Path destinationPath = processedFilesDir.resolve(file.getFileName());
-        destinationPath = ensureUniqe(destinationPath);
-        Files.move(file, destinationPath);
+        if (uploadFile(file)) {
+            Path destinationPath = processedFilesDir.resolve(file.getFileName());
+            destinationPath = ensureUniqe(destinationPath);
+            Files.move(file, destinationPath);
+        }
     }
 
     private synchronized Path ensureUniqe(Path path) {
@@ -137,7 +152,7 @@ public class TridocFolder {
         throw new RuntimeException("Couldn't find a suitable path for " + path);
     }
 
-    private void uploadFile(Path file) throws IOException {
+    private boolean uploadFile(Path file) throws IOException {
         try (CloseableHttpClient httpClient = createHttpClient()) {
             URI titleLocation;
             {
@@ -167,8 +182,12 @@ public class TridocFolder {
 
                 }
             }
+            return true;
         } catch (URISyntaxException ex) {
             throw new RuntimeException("Instance URI is invalid");
+        } catch (Exception ex) {
+            log("Failed to upload "+file, ex);
+            return false;
         }
     }
 
@@ -191,4 +210,20 @@ public class TridocFolder {
     private String removeExtension(String fileName) {
         return fileName.substring(0, fileName.lastIndexOf('.') - 1);
     }
+
+    private void log(String message, Exception ex) throws IOException {
+        FileWriter writer = new FileWriter(logFile.toFile(), true);
+        try (PrintWriter out = new PrintWriter(writer)) {
+            out.println("-------------------");
+            TimeZone tz = TimeZone.getTimeZone("UTC");
+            DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+            df.setTimeZone(tz);
+            out.println(df.format(new Date())+" - "+message);
+            if (ex != null) {
+                ex.printStackTrace(out);
+            }
+        }
+        
+    }
+    private Path logFile;
 }

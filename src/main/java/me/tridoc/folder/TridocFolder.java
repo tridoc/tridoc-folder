@@ -112,7 +112,7 @@ public class TridocFolder {
     }
 
     private void processFiles() throws IOException {
-        log("Procedding files currently in folder", null);
+        log("Processing files currently in folder", null);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (final Iterator<Path> file = stream.iterator(); file.hasNext();) {
                 Path child = dir.resolve(file.next());
@@ -125,7 +125,7 @@ public class TridocFolder {
     }
 
     private void processFile(Path file) throws IOException {
-        if(!file.toString().endsWith(".pdf")) {
+        if(!file.toString().endsWith(".pdf") && !file.toString().endsWith(".PDF")) {
             log(file+" doesn't end with \".pdf\", ignoring.", null);
             return;
         }
@@ -208,7 +208,7 @@ public class TridocFolder {
     }
 
     private String removeExtension(String fileName) {
-        return fileName.substring(0, fileName.lastIndexOf('.') - 1);
+        return fileName.substring(0, fileName.lastIndexOf('.'));
     }
 
     private void log(String message, Exception ex) throws IOException {

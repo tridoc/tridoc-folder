@@ -1,6 +1,5 @@
 package me.tridoc.folder;
 
-import java.io.File;
 import java.io.FileWriter;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
@@ -19,6 +18,7 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.TimeZone;
@@ -106,7 +106,7 @@ public class TridocFolder {
             return;
         }
 
-        var uploadDir = new TridocFolder(tridocFolderArgs);
+        TridocFolder uploadDir = new TridocFolder(tridocFolderArgs);
         uploadDir.processFiles();
         uploadDir.monitor();
     }
@@ -158,6 +158,9 @@ public class TridocFolder {
             {
                 HttpPost httpPost = new HttpPost(new URI(arguments.getInstance()).resolve("/doc").toString());
                 httpPost.setHeader("Content-Type", "application/pdf");
+                Base64.Encoder encoder = Base64.getEncoder();
+                String encoded = encoder.encodeToString((arguments.getUserName()+":"+arguments.getPassword()).getBytes());
+                httpPost.setHeader("authorization", "Basic "+encoded);
                 httpPost.setEntity(new FileEntity(file.toFile()));
                 try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
                     final StatusLine statusLine = response.getStatusLine();

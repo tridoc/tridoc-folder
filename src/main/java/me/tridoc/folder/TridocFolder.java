@@ -195,7 +195,7 @@ public class TridocFolder {
             {
                 HttpPut httpPut = new HttpPut(titleLocation);
                 httpPut.setHeader("Content-Type", "application/json");
-                httpPut.setEntity(new StringEntity("{\"title\": \"" + removeExtension(file.getFileName().toString()) + "\"}"));
+                httpPut.setEntity(new StringEntity("{\"title\": \"" + removeExtension(file.getFileName().toString()) + "\"}", "utf-8"));
                 try (CloseableHttpResponse response = httpClient.execute(httpPut)) {
                     final StatusLine statusLine = response.getStatusLine();
                     if (statusLine.getStatusCode() >= 400) {

@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileSystemException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,6 +23,8 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.TimeZone;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
@@ -134,7 +137,24 @@ public class TridocFolder {
         if (uploadFile(file)) {
             Path destinationPath = processedFilesDir.resolve(file.getFileName());
             destinationPath = ensureUniqe(destinationPath);
-            Files.move(file, destinationPath);
+            insistingMove(file, destinationPath, 10, 100);
+        }
+    }
+    
+    private void insistingMove(Path source, Path target, int retry, int wait) throws IOException {
+        try {
+            Files.move(source, target);
+        } catch (FileSystemException e) {
+            if (retry > 0) {
+                try {
+                    Thread.sleep(wait);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+                insistingMove(source, target, retry - 1, wait * 2);
+            } else {
+                throw e;
+            }
         }
     }
 

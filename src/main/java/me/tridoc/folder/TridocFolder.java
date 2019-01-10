@@ -146,6 +146,7 @@ public class TridocFolder {
             Files.move(source, target);
         } catch (FileSystemException e) {
             if (retry > 0) {
+                System.out.format("%s - will retry in %s ms\n", e, wait);
                 try {
                     Thread.sleep(wait);
                 } catch (InterruptedException ex) {
@@ -153,7 +154,7 @@ public class TridocFolder {
                 }
                 insistingMove(source, target, retry - 1, wait * 2);
             } else {
-                throw e;
+               System.out.format("%s - Giving up.");
             }
         }
     }
